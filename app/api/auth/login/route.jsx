@@ -1,39 +1,50 @@
-async function handler({ body }) {
-    if (!body?.email || !body?.password) {
-      return { error: "Missing required fields" };
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { compare } from 'bcryptjs';
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
-  
-    try {
-      const [user] = await sql`
-        SELECT id, username, email, password_hash, preferred_language
-        FROM users 
-        WHERE email = ${body.email}
-      `;
-  
-      if (!user) {
-        return { error: "Invalid email or password" };
-      }
-  
-      const [salt, storedHash] = user.password_hash.split(":");
-      const hash = crypto
-        .pbkdf2Sync(body.password, salt, 1000, 64, "sha512")
-        .toString("hex");
-  
-      if (storedHash !== hash) {
-        return { error: "Invalid email or password" };
-      }
-  
-      const token = crypto.randomBytes(32).toString("hex");
-      await sql`
-        UPDATE users 
-        SET session_token = ${token},
-            session_expiry = ${new Date(Date.now() + 24 * 60 * 60 * 1000)}
-        WHERE id = ${user.id}
-      `;
-  
-      delete user.password_hash;
-      return { user, token };
-    } catch (error) {
-      return { error: "Login failed" };
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
     }
+
+    // Verify password
+    const isValidPassword = await compare(password, user.password);
+
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+
+    return NextResponse.json({ user: userWithoutPassword });
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { error: 'Something went wrong' },
+      { status: 500 }
+    );
   }
+}

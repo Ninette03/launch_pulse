@@ -98,8 +98,8 @@ function MainComponent() {
     try {
       setLoading(true);
       const endpoint = evaluationId
-        ? "/api/update-evaluation"
-        : "/api/create-evaluation";
+        ? "/api/evaluation/update"
+        : "/api/evaluation/create";
       const response = await fetch(endpoint, {
         method: "POST",
         body: JSON.stringify({
@@ -134,8 +134,11 @@ function MainComponent() {
   const submitEvaluation = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/update-evaluation", {
+      const response = await fetch("/api/evaluation/update", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           ...formData,
           id: evaluationId,
@@ -144,16 +147,18 @@ function MainComponent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to submit evaluation");
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Failed to submit evaluation");
       }
 
+      const data = await response.json();
       setFeedback("Evaluation submitted successfully");
       setTimeout(() => {
-        window.location.href = "/dashboard";
+        window.location.href = "/Dashboard";
       }, 2000);
     } catch (err) {
-      console.error(err);
-      setError("Failed to submit evaluation");
+      console.error("Submission error:", err);
+      setError(err.message || "Failed to submit evaluation");
     } finally {
       setLoading(false);
     }
