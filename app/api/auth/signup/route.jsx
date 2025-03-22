@@ -22,7 +22,7 @@ export async function POST(request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'EmailCreateAccount' },
+        { error: 'User already exists' },
         { status: 400 }
       );
     }

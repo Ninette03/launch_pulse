@@ -28,7 +28,7 @@ function MainComponent() {
       await signInWithCredentials({
         email,
         password,
-        callbackUrl: "/dashboard",
+        callbackUrl: "/Dashboard",
         redirect: true,
       });
     } catch (err) {

@@ -1,5 +1,10 @@
-async function handler(
-    {
+import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const {
       businessName,
       sector,
       location,
@@ -8,77 +13,75 @@ async function handler(
       marketStrategy,
       competitors,
       challenges,
-      draft = true,
-    },
-    context
-  ) {
-    const userId = context.user?.id;
-  
-    if (!userId) {
-      return { error: "Authentication required" };
-    }
-  
-    const marketScore = calculateMarketScore({ sector, marketStrategy });
-    const feasibilityScore = calculateFeasibilityScore({ employees, revenue });
-    const innovationScore = calculateInnovationScore({ competitors, challenges });
-  
+      draft,
+    } = body;
+
     try {
       const [evaluation] = await sql`
-        INSERT INTO evaluations (
+        INSERT INTO Evaluation (
           business_name,
           sector,
-          location, 
+          location,
           employees,
           revenue_range,
           market_strategy,
           competitors,
           challenges,
           draft,
-          created_by,
           market_score,
           feasibility_score,
           innovation_score
         ) VALUES (
-          ${businessName},
-          ${sector},
-          ${location},
-          ${employees},
-          ${revenue},
-          ${marketStrategy},
-          ${competitors},
-          ${challenges},
+          ${businessName || null},
+          ${sector || null},
+          ${location || null},
+          ${employees || null},
+          ${revenue || null},
+          ${marketStrategy || null},
+          ${competitors || null},
+          ${challenges || null},
           ${draft},
-          ${userId},
-          ${marketScore},
-          ${feasibilityScore},
-          ${innovationScore}
+          ${calculateMarketScore({ sector, marketStrategy })},
+          ${calculateFeasibilityScore({ employees, revenue })},
+          ${calculateInnovationScore({ competitors, challenges })}
         )
         RETURNING *
       `;
-  
-      return { evaluation };
+
+      return NextResponse.json({ evaluation });
     } catch (error) {
-      return { error: "Failed to create evaluation" };
+      console.error('Database error:', error.message);
+      return NextResponse.json(
+        { error: "Failed to create evaluation", details: error.message },
+        { status: 500 }
+      );
     }
+  } catch (error) {
+    console.error('Request error:', error);
+    return NextResponse.json(
+      { error: "Invalid request" },
+      { status: 400 }
+    );
   }
-  
-  function calculateMarketScore({ sector, marketStrategy }) {
-    let score = 0;
-    if (sector) score += 15;
-    if (marketStrategy?.length > 100) score += 15;
-    return score;
-  }
-  
-  function calculateFeasibilityScore({ employees, revenue }) {
-    let score = 0;
-    if (employees) score += 15;
-    if (revenue) score += 15;
-    return score;
-  }
-  
-  function calculateInnovationScore({ competitors, challenges }) {
-    let score = 0;
-    if (competitors?.length > 100) score += 20;
-    if (challenges?.length > 100) score += 20;
-    return score;
-  }
+}
+
+function calculateMarketScore({ sector, marketStrategy }) {
+  let score = 0;
+  if (sector) score += 15;
+  if (marketStrategy?.length > 100) score += 15;
+  return score;
+}
+
+function calculateFeasibilityScore({ employees, revenue }) {
+  let score = 0;
+  if (employees) score += 15;
+  if (revenue) score += 15;
+  return score;
+}
+
+function calculateInnovationScore({ competitors, challenges }) {
+  let score = 0;
+  if (competitors?.length > 100) score += 20;
+  if (challenges?.length > 100) score += 20;
+  return score;
+}

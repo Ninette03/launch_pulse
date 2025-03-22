@@ -7,7 +7,7 @@ async function handler({ id }, context) {
   
     try {
       const [evaluation] = await sql`
-        SELECT * FROM evaluations 
+        SELECT * FROM Evaluation 
         WHERE id = ${id} 
         AND created_by = ${userId}
       `;

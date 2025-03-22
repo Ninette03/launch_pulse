@@ -53,7 +53,7 @@ function MainComponent() {
   const loadEvaluation = async (id) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/get-evaluation", {
+      const response = await fetch("/api/evaluation/[id]", {
         method: "POST",
         body: JSON.stringify({ id }),
       });
@@ -97,35 +97,48 @@ function MainComponent() {
   const saveDraft = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      const draftData = {
+        ...formData,
+        id: evaluationId,
+        draft: true,
+      };
+
+      console.log('Saving draft with data:', draftData);
+
       const endpoint = evaluationId
         ? "/api/evaluation/update"
         : "/api/evaluation/create";
+
       const response = await fetch(endpoint, {
         method: "POST",
-        body: JSON.stringify({
-          ...formData,
-          id: evaluationId,
-          draft: true,
-        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(draftData),
       });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error("Failed to save draft");
+        throw new Error(data.error || "Failed to save draft");
       }
 
-      const { evaluation } = await response.json();
+      const { evaluation } = data;
       setEvaluationId(evaluation.id);
       setScores({
-        market: evaluation.market_score,
-        feasibility: evaluation.feasibility_score,
-        innovation: evaluation.innovation_score,
+        market: evaluation.market_score || 0,
+        feasibility: evaluation.feasibility_score || 0,
+        innovation: evaluation.innovation_score || 0,
       });
       setFeedback("Draft saved successfully");
-
       setTimeout(() => setFeedback(""), 3000);
     } catch (err) {
-      console.error(err);
-      setError("Failed to save draft");
+      console.error("Save draft error:", err);
+      setError(err.message || "Failed to save draft");
     } finally {
       setLoading(false);
     }

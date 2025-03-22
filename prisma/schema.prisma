@@ -23,3 +23,20 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
+
+model Evaluation {
+  id              String   @id @default(cuid())
+  businessName    String
+  sector          String
+  marketStrategy  String?
+  competitors     String?
+  challenges      String?
+  employees       String?
+  revenue         String?
+  market_score    Int      @default(0)
+  feasibility_score Int    @default(0)
+  innovation_score Int     @default(0)
+  draft          Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}

@@ -1,5 +1,10 @@
-async function handler(
-    {
+import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const {
       id,
       businessName,
       sector,
@@ -10,19 +15,12 @@ async function handler(
       competitors,
       challenges,
       draft,
-    },
-    context
-  ) {
-    const userId = context.user?.id;
-  
-    if (!userId) {
-      return { error: "Authentication required" };
-    }
-  
+    } = body;
+
     const updates = [];
     const values = [];
     let valueCount = 1;
-  
+
     if (businessName !== undefined) {
       updates.push(`business_name = $${valueCount}`);
       values.push(businessName);
@@ -68,7 +66,7 @@ async function handler(
       values.push(draft);
       valueCount++;
     }
-  
+
     if (sector !== undefined || marketStrategy !== undefined) {
       updates.push(`market_score = $${valueCount}`);
       values.push(calculateMarketScore({ sector, marketStrategy }));
@@ -84,46 +82,58 @@ async function handler(
       values.push(calculateInnovationScore({ competitors, challenges }));
       valueCount++;
     }
-  
+
     values.push(id);
-    values.push(userId);
-  
+
     try {
-      const [evaluation] = await sql(
-        `UPDATE evaluations 
-         SET ${updates.join(", ")}
-         WHERE id = $${valueCount} AND created_by = $${valueCount + 1}
-         RETURNING *`,
-        values
-      );
-  
+      const [evaluation] = await sql`
+        UPDATE Evaluation 
+        SET ${sql(updates.join(", "))}
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
       if (!evaluation) {
-        return { error: "Evaluation not found or unauthorized" };
+        return NextResponse.json(
+          { error: "Evaluation not found" },
+          { status: 404 }
+        );
       }
-  
-      return { evaluation };
+
+      return NextResponse.json({ evaluation });
     } catch (error) {
-      return { error: "Failed to update evaluation" };
+      console.error('Update error:', error);
+      return NextResponse.json(
+        { error: "Failed to update evaluation" },
+        { status: 500 }
+      );
     }
+  } catch (error) {
+    console.error('Request error:', error);
+    return NextResponse.json(
+      { error: "Invalid request" },
+      { status: 400 }
+    );
   }
-  
-  function calculateMarketScore({ sector, marketStrategy }) {
-    let score = 0;
-    if (sector) score += 15;
-    if (marketStrategy?.length > 100) score += 15;
-    return score;
-  }
-  
-  function calculateFeasibilityScore({ employees, revenue }) {
-    let score = 0;
-    if (employees) score += 15;
-    if (revenue) score += 15;
-    return score;
-  }
-  
-  function calculateInnovationScore({ competitors, challenges }) {
-    let score = 0;
-    if (competitors?.length > 100) score += 20;
-    if (challenges?.length > 100) score += 20;
-    return score;
-  }
+}
+
+function calculateMarketScore({ sector, marketStrategy }) {
+  let score = 0;
+  if (sector) score += 15;
+  if (marketStrategy?.length > 100) score += 15;
+  return score;
+}
+
+function calculateFeasibilityScore({ employees, revenue }) {
+  let score = 0;
+  if (employees) score += 15;
+  if (revenue) score += 15;
+  return score;
+}
+
+function calculateInnovationScore({ competitors, challenges }) {
+  let score = 0;
+  if (competitors?.length > 100) score += 20;
+  if (challenges?.length > 100) score += 20;
+  return score;
+}
