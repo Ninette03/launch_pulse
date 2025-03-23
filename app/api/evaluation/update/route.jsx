@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { prisma } from '@/lib/db';
 
 export async function POST(request) {
   try {
@@ -8,7 +8,6 @@ export async function POST(request) {
       id,
       businessName,
       sector,
-      location,
       employees,
       revenue,
       marketStrategy,
@@ -17,102 +16,41 @@ export async function POST(request) {
       draft,
     } = body;
 
-    const updates = [];
-    const values = [];
-    let valueCount = 1;
+    // Prepare the data object for updates
+    const data = {};
+    
+    if (businessName !== undefined) data.businessName = businessName;
+    if (sector !== undefined) data.sector = sector;
+    if (employees !== undefined) data.employees = employees;
+    if (revenue !== undefined) data.revenue = revenue;
+    if (marketStrategy !== undefined) data.marketStrategy = marketStrategy;
+    if (competitors !== undefined) data.competitors = competitors;
+    if (challenges !== undefined) data.challenges = challenges;
+    if (draft !== undefined) data.draft = draft;
 
-    if (businessName !== undefined) {
-      updates.push(`business_name = $${valueCount}`);
-      values.push(businessName);
-      valueCount++;
-    }
-    if (sector !== undefined) {
-      updates.push(`sector = $${valueCount}`);
-      values.push(sector);
-      valueCount++;
-    }
-    if (location !== undefined) {
-      updates.push(`location = $${valueCount}`);
-      values.push(location);
-      valueCount++;
-    }
-    if (employees !== undefined) {
-      updates.push(`employees = $${valueCount}`);
-      values.push(employees);
-      valueCount++;
-    }
-    if (revenue !== undefined) {
-      updates.push(`revenue_range = $${valueCount}`);
-      values.push(revenue);
-      valueCount++;
-    }
-    if (marketStrategy !== undefined) {
-      updates.push(`market_strategy = $${valueCount}`);
-      values.push(marketStrategy);
-      valueCount++;
-    }
-    if (competitors !== undefined) {
-      updates.push(`competitors = $${valueCount}`);
-      values.push(competitors);
-      valueCount++;
-    }
-    if (challenges !== undefined) {
-      updates.push(`challenges = $${valueCount}`);
-      values.push(challenges);
-      valueCount++;
-    }
-    if (draft !== undefined) {
-      updates.push(`draft = $${valueCount}`);
-      values.push(draft);
-      valueCount++;
-    }
-
+    // Calculate scores if necessary
     if (sector !== undefined || marketStrategy !== undefined) {
-      updates.push(`market_score = $${valueCount}`);
-      values.push(calculateMarketScore({ sector, marketStrategy }));
-      valueCount++;
+      data.market_score = calculateMarketScore({ sector, marketStrategy });
     }
     if (employees !== undefined || revenue !== undefined) {
-      updates.push(`feasibility_score = $${valueCount}`);
-      values.push(calculateFeasibilityScore({ employees, revenue }));
-      valueCount++;
+      data.feasibility_score = calculateFeasibilityScore({ employees, revenue });
     }
     if (competitors !== undefined || challenges !== undefined) {
-      updates.push(`innovation_score = $${valueCount}`);
-      values.push(calculateInnovationScore({ competitors, challenges }));
-      valueCount++;
+      data.innovation_score = calculateInnovationScore({ competitors, challenges });
     }
 
-    values.push(id);
+    // Update the evaluation in the database
+    const evaluation = await prisma.evaluation.update({
+      where: { id },
+      data,
+    });
 
-    try {
-      const [evaluation] = await sql`
-        UPDATE Evaluation 
-        SET ${sql(updates.join(", "))}
-        WHERE id = ${id}
-        RETURNING *
-      `;
-
-      if (!evaluation) {
-        return NextResponse.json(
-          { error: "Evaluation not found" },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({ evaluation });
-    } catch (error) {
-      console.error('Update error:', error);
-      return NextResponse.json(
-        { error: "Failed to update evaluation" },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({ evaluation });
   } catch (error) {
-    console.error('Request error:', error);
+    console.error('Update error:', error);
     return NextResponse.json(
-      { error: "Invalid request" },
-      { status: 400 }
+      { error: "Failed to update evaluation", details: error.message },
+      { status: 500 }
     );
   }
 }

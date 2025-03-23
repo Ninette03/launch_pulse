@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { prisma } from '@/lib/db';
 
 export async function POST(request) {
+  
   try {
     const body = await request.json();
     const {
       businessName,
       sector,
-      location,
       employees,
       revenue,
       marketStrategy,
@@ -16,51 +16,28 @@ export async function POST(request) {
       draft,
     } = body;
 
-    try {
-      const [evaluation] = await sql`
-        INSERT INTO Evaluation (
-          business_name,
-          sector,
-          location,
-          employees,
-          revenue_range,
-          market_strategy,
-          competitors,
-          challenges,
-          draft,
-          market_score,
-          feasibility_score,
-          innovation_score
-        ) VALUES (
-          ${businessName || null},
-          ${sector || null},
-          ${location || null},
-          ${employees || null},
-          ${revenue || null},
-          ${marketStrategy || null},
-          ${competitors || null},
-          ${challenges || null},
-          ${draft},
-          ${calculateMarketScore({ sector, marketStrategy })},
-          ${calculateFeasibilityScore({ employees, revenue })},
-          ${calculateInnovationScore({ competitors, challenges })}
-        )
-        RETURNING *
-      `;
+    const evaluation = await prisma.evaluation.create({
+      data: {
+        businessName: businessName,
+        sector,
+        employees,
+        revenue: revenue,
+        marketStrategy: marketStrategy,
+        competitors,
+        challenges,
+        draft,
+        market_score: calculateMarketScore({ sector, marketStrategy }),
+        feasibility_score: calculateFeasibilityScore({ employees, revenue }),
+        innovation_score: calculateInnovationScore({ competitors, challenges }),
+      },
+    });
 
-      return NextResponse.json({ evaluation });
-    } catch (error) {
-      console.error('Database error:', error.message);
-      return NextResponse.json(
-        { error: "Failed to create evaluation", details: error.message },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({ evaluation });
   } catch (error) {
-    console.error('Request error:', error);
+    console.error('Database error:', error.message);
     return NextResponse.json(
-      { error: "Invalid request" },
-      { status: 400 }
+      { error: "Failed to create evaluation", details: error.message },
+      { status: 500 }
     );
   }
 }
