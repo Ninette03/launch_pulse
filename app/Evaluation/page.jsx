@@ -42,13 +42,6 @@ function MainComponent() {
       "Manufacturing sector growing at 7% annually with government incentives available.",
   };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
-    if (id) {
-      loadEvaluation(id);
-    }
-  }, []);
 
   const loadEvaluation = async (id) => {
     try {
@@ -98,46 +91,45 @@ function MainComponent() {
     try {
       setLoading(true);
       setError(null);
-
+  
       const draftData = {
         ...formData,
         id: evaluationId,
         draft: true,
       };
-
-      console.log('Saving draft with data:', draftData);
-
+  
       const endpoint = evaluationId
         ? "/api/evaluation/update"
         : "/api/evaluation/create";
-
+  
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draftData),
       });
-
-      console.log('Response status:', response.status);
+  
       const data = await response.json();
-      console.log('Response data:', data);
-
+  
       if (!response.ok) {
         throw new Error(data.error || "Failed to save draft");
       }
-
-      const { evaluation } = data;
-      setEvaluationId(evaluation.id);
-      setScores({
-        market: evaluation.market_score || 0,
-        feasibility: evaluation.feasibility_score || 0,
-        innovation: evaluation.innovation_score || 0,
-      });
+  
+      // Handle CREATE response (returns evaluationId)
+      if (!evaluationId && data.evaluationId) {
+        setEvaluationId(data.evaluationId);
+      }
+      // Handle UPDATE response (returns full evaluation object)
+      else if (evaluationId && data.evaluation) {
+        setScores({
+          market: data.evaluation.market_score || 0,
+          feasibility: data.evaluation.feasibility_score || 0,
+          innovation: data.evaluation.innovation_score || 0,
+        });
+      }
+  
       setFeedback("Draft saved successfully");
       setTimeout(() => setFeedback(""), 3000);
     } catch (err) {
-      console.error("Save draft error:", err);
       setError(err.message || "Failed to save draft");
     } finally {
       setLoading(false);
@@ -167,7 +159,7 @@ function MainComponent() {
       const data = await response.json();
       setFeedback("Evaluation submitted successfully");
       setTimeout(() => {
-        window.location.href = "/Dashboard";
+        window.location.href = "/Dashboard?id=${evaluationId}";
       }, 2000);
     } catch (err) {
       console.error("Submission error:", err);

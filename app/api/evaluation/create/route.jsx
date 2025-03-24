@@ -32,7 +32,11 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json({ evaluation });
+    if (!evaluation) {
+      throw new Error("Evaluation creation failed");
+    }
+
+    return NextResponse.json({ evaluationId: evaluation.id });
   } catch (error) {
     console.error('Database error:', error.message);
     return NextResponse.json(

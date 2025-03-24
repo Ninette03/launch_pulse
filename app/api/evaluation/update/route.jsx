@@ -45,7 +45,12 @@ export async function POST(request) {
       data,
     });
 
-    return NextResponse.json({ evaluation });
+    return NextResponse.json({ 
+      evaluationId: evaluation.id,
+      market_score: evaluation.market_score,
+      feasibility_score: evaluation.feasibility_score,
+      innovation_score: evaluation.innovation_score,
+    });
   } catch (error) {
     console.error('Update error:', error);
     return NextResponse.json(

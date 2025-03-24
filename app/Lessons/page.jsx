@@ -15,7 +15,7 @@ function MainComponent() {
 
     const fetchLessons = async () => {
       try {
-        const response = await fetch("/api/get-user-lessons", {
+        const response = await fetch("/api/progress/lessons", {
           method: "POST",
           body: JSON.stringify({}),
         });
@@ -45,7 +45,7 @@ function MainComponent() {
 
   const handleMarkComplete = async (lessonId, completed) => {
     try {
-      const response = await fetch("/api/update-lesson-progress", {
+      const response = await fetch("/api/progress/lessons", {
         method: "POST",
         body: JSON.stringify({ lessonId, completed }),
       });

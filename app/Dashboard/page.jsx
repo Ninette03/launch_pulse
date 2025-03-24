@@ -1,8 +1,10 @@
 "use client";
-import React from "react";
-import { useState } from "react";
+import { useState, React } from "react";
+import { useRouter } from "next/navigation";
 
 function MainComponent() {
+  const router = useRouter();
+
   const [ideas, setIdeas] = useState([
     { id: 1, name: "Eco-Friendly Food Delivery", score: 85, progress: 70 },
     { id: 2, name: "Virtual Fitness Platform", score: 92, progress: 40 },
@@ -34,12 +36,12 @@ function MainComponent() {
           <h1 className="text-3xl font-bold font-roboto text-gray-800">
             Dashboard
           </h1>
-          <a
-            href="/Evaluation"
+          <button
+            onClick={() => router.push("/Evaluation")}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-roboto"
           >
             Start New Evaluation
-          </a>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -79,12 +81,12 @@ function MainComponent() {
                   key={discussion.id}
                   className="flex justify-between items-center border-b pb-4"
                 >
-                  <a
-                    href="/forum"
+                  <button
+                    onClick={() => router.push("/Forum")}
                     className="text-gray-700 hover:text-blue-600 font-roboto"
                   >
                     {discussion.title}
-                  </a>
+                  </button>
                   <span className="text-sm text-gray-500 font-roboto">
                     {discussion.replies} replies
                   </span>
