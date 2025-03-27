@@ -41,25 +41,24 @@ function MainComponent() {
     manufacturing:
       "Manufacturing sector growing at 7% annually with government incentives available.",
   };
+  const [showResultsModal, setShowResultsModal] = useState(false);
 
 
   const loadEvaluation = async (id) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/evaluation/[id]", {
-        method: "POST",
-        body: JSON.stringify({ id }),
-      });
+      const response = await fetch(`/api/evaluation/list?evaluationId=${id}`);
       if (!response.ok) {
         throw new Error("Failed to load evaluation");
       }
-      const { evaluation } = await response.json();
+      const { scores, ...evaluation } = await response.json();
+      
       setFormData(evaluation);
       setEvaluationId(evaluation.id);
-      setScores({
-        market: evaluation.market_score,
-        feasibility: evaluation.feasibility_score,
-        innovation: evaluation.innovation_score,
+      setScores(scores || { // Fallback if scores not provided
+        market_score: 0,
+        feasibility: 0,
+        innovation: 0
       });
     } catch (err) {
       console.error(err);
@@ -141,33 +140,82 @@ function MainComponent() {
       setLoading(true);
       const response = await fetch("/api/evaluation/update", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           id: evaluationId,
-          draft: false,
+          draft: false // Mark as submitted
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || "Failed to submit evaluation");
-      }
+      if (!response.ok) throw new Error("Failed to submit evaluation");
 
-      const data = await response.json();
-      setFeedback("Evaluation submitted successfully");
-      setTimeout(() => {
-        window.location.href = "/Dashboard?id=${evaluationId}";
-      }, 2000);
+      // Get the analyzed results
+      const analysisResponse = await fetch(`/api/evaluation/list?evaluationId=${evaluationId}`);
+      const { scores, feedback } = await analysisResponse.json();
+
+      setScores(scores);
+      setFeedback(feedback);
+      setShowResultsModal(true);
+
     } catch (err) {
-      console.error("Submission error:", err);
-      setError(err.message || "Failed to submit evaluation");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+  function ResultsModal({ scores = {}, feedback = "", onClose }) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Evaluation Results</h2>
+            
+            {/* Scores Grid */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-700">Market</h3>
+                <p className="text-3xl font-bold text-blue-600">
+                  {(scores.market || 0)}/30
+                </p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-700">Feasibility</h3>
+                <p className="text-3xl font-bold text-green-600">
+                  {scores.feasibility}/30
+                </p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-700">Innovation</h3>
+                <p className="text-3xl font-bold text-purple-600">
+                  {scores.innovation}/40
+                </p>
+              </div>
+            </div>
+  
+            {/* Feedback */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2">AI Feedback</h3>
+              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                {feedback}
+              </div>
+            </div>
+  
+            {/* Close Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                View in Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">

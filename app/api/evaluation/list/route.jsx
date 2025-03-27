@@ -1,113 +1,72 @@
-async function handler({ evaluationId }) {
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
+import { PrismaClient } from '@prisma/client';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const prisma = new PrismaClient();
+
+export async function GET(request) {
   try {
-    const session = getSession();
-    if (!session?.user?.id) {
-      return { error: "Authentication required" };
-    }
-
-    if (!evaluationId) {
-      return { error: "Evaluation ID is required" };
-    }
-
-    const [evaluation] = await sql`
-      SELECT e.*, u.email 
-      FROM evaluations e
-      JOIN users u ON e.created_by = u.id
-      WHERE e.id = ${evaluationId}
-    `;
+    const { searchParams } = new URL(request.url);
+    const evaluationId = searchParams.get("evaluationId");
+    
+    // 1. Fetch your evaluation data (your existing logic)
+    const evaluation = await prisma.evaluation.findUnique({
+      where: { id: evaluationId },
+    });
 
     if (!evaluation) {
-      return { error: "Evaluation not found" };
+      return NextResponse.json(
+        { error: "Evaluation not found" },
+        { status: 404 }
+      );
     }
 
-    const geminiResponse = await fetch("/integrations/google-gemini-1-5/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "user",
-            content: `Analyze this business:
-            Name: ${evaluation.business_name}
-            Sector: ${evaluation.sector}
-            Location: ${evaluation.location}
-            Employees: ${evaluation.employees}
-            Revenue Range: ${evaluation.revenue_range}
-            Market Strategy: ${evaluation.market_strategy}
-            Competitors: ${evaluation.competitors}
-            Challenges: ${evaluation.challenges}
+    // 2. Call Gemini ONLY if evaluation is ready for analysis
+    if (!evaluation.draft && !evaluation.feedback) {
+      const model = genAI.getGenerativeModel({
+        model: process.env.NEXT_PUBLIC_GEMINI_MODEL || "gemini-1.5-pro-latest"
+      });
 
-            Please provide:
-            1. Market Score (0-100)
-            2. Feasibility Score (0-100)
-            3. Innovation Score (0-100)
-            4. Detailed feedback`,
-          },
-        ],
-      }),
-    });
+      const prompt = `
+        Analyze this business evaluation and provide detailed feedback:
+        
+        - Business: ${evaluation.businessName}
+        - Sector: ${evaluation.sector}
+        - MarketScore: ${evaluation.market_score}/100
+        - Feasibility Score: ${evaluation.feasibility_score}/100
+        - Innovation Score: ${evaluation.innovation_score}/100
+        
+        Provide specific recommendations for improvement.
+      `;
 
-    if (!geminiResponse.ok) {
-      throw new Error("Failed to get AI analysis");
+      const result = await model.generateContent(prompt);
+      const feedback = (await result.response).text();
+      const truncatedFeedback = feedback.slice(0, 5000);
+
+      await prisma.evaluation.update({
+        where: { id: evaluationId },
+        data: { 
+          feedback: truncatedFeedback,
+        updated_at: new Date() },
+      });
     }
 
-    const analysis = await geminiResponse.json();
-    const content = analysis.choices[0].message.content;
+    return NextResponse.json(
+      await prisma.evaluation.findUnique({
+        where: { id: evaluationId },
+      })
+    );
 
-    if (!content) {
-      throw new Error("Invalid AI response format");
-    }
-
-    const scores = {
-      market_score: parseInt(
-        content.match(/Market Score.*?(\d+)/)?.[1] || "70"
-      ),
-      feasibility_score: parseInt(
-        content.match(/Feasibility Score.*?(\d+)/)?.[1] || "70"
-      ),
-      innovation_score: parseInt(
-        content.match(/Innovation Score.*?(\d+)/)?.[1] || "70"
-      ),
-    };
-
-    await sql`
-      UPDATE evaluations 
-      SET 
-        market_score = ${scores.market_score},
-        feasibility_score = ${scores.feasibility_score},
-        innovation_score = ${scores.innovation_score},
-        feedback = ${content},
-        draft = false
-      WHERE id = ${evaluationId}
-    `;
-
-    const emailResponse = await fetch(process.env.EMAIL_SERVICE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.EMAIL_SERVICE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        to: evaluation.email,
-        subject: "Your Business Evaluation is Ready",
-        text: `Your evaluation for ${evaluation.business_name} has been completed. Log in to view the detailed results.`,
-      }),
-    });
-
-    if (!emailResponse.ok) {
-      console.error("Failed to send email notification");
-    }
-
-    return {
-      success: true,
-      scores,
-      feedback: content,
-    };
   } catch (error) {
-    console.error("Error processing evaluation:", error);
-    return {
-      error: "Failed to process evaluation",
-      details: error.message,
-    };
+    console.error("Gemini error details:", {
+      message: error.message,
+      stack:error.stack,
+      cause: error.cause
+    });
+    return NextResponse.json(
+      { error: "Analysis failed: " + error.message },
+      { status: 500 }
+    );
   }
 }

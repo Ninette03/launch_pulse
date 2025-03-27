@@ -37,6 +37,7 @@ model Evaluation {
   feasibility_score Int    @default(0)
   innovation_score Int     @default(0)
   draft          Boolean  @default(true)
+  feedback          String?
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 }
