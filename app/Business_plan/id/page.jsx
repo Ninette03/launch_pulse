@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import DownloadPdf from "../components/download-pdf";
+import DownloadPdf from "../../Components/DownloadPDF";
 
 function MainComponent() {
   const [businessPlan, setBusinessPlan] = useState(null);
@@ -23,7 +23,7 @@ function MainComponent() {
         const data = await response.json();
         setBusinessPlan(data);
 
-        const analysisResponse = await fetch("/api/business/analyze", {
+        const analysisResponse = await fetch("/api/business-plan/analyze", {
           method: "POST",
           body: JSON.stringify({ planId }),
         });
