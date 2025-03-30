@@ -24,10 +24,13 @@ model User {
   updated_at DateTime @updatedAt
   resetToken         String?
   resetTokenExpires  DateTime?
+
+  evaluations Evaluation[]
 }
 
 model Evaluation {
   id              String   @id @default(cuid())
+  userId          String?
   businessName    String
   sector          String
   marketStrategy  String?
@@ -42,4 +45,6 @@ model Evaluation {
   feedback          String?
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
+
+  user           User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
