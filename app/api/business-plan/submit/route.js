@@ -1,85 +1,76 @@
-async function handler({ body }) {
-    const session = getSession();
-    if (!session?.user) {
-      return { error: "Authentication required" };
-    }
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import { getServerSession } from "next-auth";
+
+const prisma = new PrismaClient();
+
+export async function POST(request) {
+  const session = await getServerSession(authOptions);
   
-    if (!body?.businessName || !body?.description || !body?.sector) {
-      return { error: "Missing required fields" };
-    }
-  
-    try {
-      const response = await fetch("/integrations/chat-gpt/conversationgpt4", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a business plan evaluator. Analyze the business plan and provide a viability score (0-100) and detailed feedback.",
-            },
-            {
-              role: "user",
-              content: `Business Name: ${body.businessName}
-                Description: ${body.description}
-                Sector: ${body.sector}
-                Target Market: ${body.targetMarket}
-                Revenue Model: ${body.revenueModel}
-                Competitors: ${body.competitors}
-                Strengths: ${body.strengths}
-                Weaknesses: ${body.weaknesses}`,
-            },
-          ],
-          json_schema: {
-            name: "business_evaluation",
-            schema: {
-              type: "object",
-              properties: {
-                viability_score: { type: "integer" },
-                feedback: { type: "string" },
-              },
-              required: ["viability_score", "feedback"],
-              additionalProperties: false,
-            },
-          },
-        }),
-      });
-  
-      const evaluation = JSON.parse(
-        (await response.json()).choices[0].message.content
-      );
-  
-      const [plan] = await sql`
-        INSERT INTO business_plans (
-          user_id,
-          business_name,
-          business_description,
-          sector,
-          target_market,
-          revenue_model,
-          competitors,
-          strengths,
-          weaknesses,
-          viability_score,
-          feedback
-        ) VALUES (
-          ${session.user.id},
-          ${body.businessName},
-          ${body.description},
-          ${body.sector},
-          ${body.targetMarket},
-          ${body.revenueModel},
-          ${body.competitors},
-          ${body.strengths},
-          ${body.weaknesses},
-          ${evaluation.viability_score},
-          ${evaluation.feedback}
-        )
-        RETURNING *`;
-  
-      return { success: true, plan };
-    } catch (error) {
-      return { error: "Failed to submit business plan" };
-    }
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
+
+  try {
+    const body = await request.json();
+
+    if (!body.businessName || !body.description || !body.sector) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Call OpenAI (replace with correct API URL)
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, // Ensure this is set in your .env
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a business plan evaluator. Analyze the business plan and provide a viability score (0-100) and detailed feedback.",
+          },
+          {
+            role: "user",
+            content: `Business Name: ${body.businessName}
+              Description: ${body.description}
+              Sector: ${body.sector}
+              Target Market: ${body.targetMarket}
+              Revenue Model: ${body.revenueModel}
+              Competitors: ${body.competitors}
+              Strengths: ${body.strengths}
+              Weaknesses: ${body.weaknesses}`,
+          },
+        ],
+      }),
+    });
+
+    const responseData = await response.json();
+    const evaluation = JSON.parse(responseData.choices[0].message.content);
+
+    // Save business plan to Prisma database
+    const plan = await prisma.businessPlan.create({
+      data: {
+        userId: session.user.id,
+        businessName: body.businessName,
+        description: body.description,
+        sector: body.sector,
+        targetMarket: body.targetMarket,
+        revenueModel: body.revenueModel,
+        competitors: body.competitors,
+        strengths: body.strengths,
+        weaknesses: body.weaknesses,
+        viabilityScore: evaluation.viability_score,
+        feedback: evaluation.feedback,
+      },
+    });
+
+    return NextResponse.json({ success: true, plan }, { status: 201 });
+  } catch (error) {
+    console.error("Failed to submit business plan:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
