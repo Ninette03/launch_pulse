@@ -1,67 +1,65 @@
 import { NextResponse } from "next/server";
-import { getSession } from "next-auth/react"; // Ensure you have next-auth configured
-import { sql } from "@/lib/db"; // Adjust this to match your actual database connection
+import { auth } from "next-auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await auth();
 
-  if (!session?.user?.id) {
+  if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   try {
-    const [plan] = await sql`
-      SELECT * FROM business_plans 
-      WHERE user_id = ${session.user.id}
-      ORDER BY created_at DESC
-      LIMIT 1
-    `;
+    // Fetch the latest evaluation created by the user
+    const evaluation = await prisma.evaluation.findFirst({
+      where: { businessName: { not: null } },
+      orderBy: { created_at: "desc" },
+    });
 
-    if (!plan) {
-      return NextResponse.json({ error: "No business plan found" }, { status: 404 });
+    if (!evaluation) {
+      return NextResponse.json({ error: "No evaluation found" }, { status: 404 });
     }
 
-    const [evaluation] = await sql`
-      SELECT * FROM evaluations
-      WHERE business_idea_id = ${plan.id}
-      ORDER BY created_at DESC
-      LIMIT 1
-    `;
-
+    // Format the content for the PDF
     const content = `
-      # Business Plan: ${plan.business_name}
+      # Business Evaluation Report: ${evaluation.businessName}
       
-      ## Executive Summary
-      ${plan.business_description}
-      
-      ## Market Analysis
-      Target Market: ${plan.target_market}
-      
-      ## Business Model
-      Revenue Model: ${plan.revenue_model}
-      
-      ## Competitive Analysis
-      ${plan.competitors}
-      
+      ## Sector
+      ${evaluation.sector}
+
+      ## Market Strategy
+      ${evaluation.marketStrategy || "Not provided"}
+
+      ## Competitor Analysis
+      ${evaluation.competitors || "Not provided"}
+
+      ## Business Challenges
+      ${evaluation.challenges || "Not provided"}
+
+      ## Team & Employees
+      ${evaluation.employees || "Not provided"}
+
+      ## Revenue Model
+      ${evaluation.revenue || "Not provided"}
+
       ## SWOT Analysis
-      Strengths: ${plan.strengths}
-      Weaknesses: ${plan.weaknesses}
+      - **Strengths:** ${evaluation.feedback || "No feedback available"}
       
-      ## Expert Analysis
-      ${evaluation ? evaluation.feedback : "No analysis available"}
+      ## Evaluation Scores
+      - **Market Score:** ${evaluation.market_score}/100
+      - **Feasibility Score:** ${evaluation.feasibility_score}/100
+      - **Innovation Score:** ${evaluation.innovation_score}/100
       
-      Overall Viability Score: ${evaluation ? evaluation.market_score : "N/A"}/100
-      
-      Generated on: ${new Date().toLocaleDateString()}
+      **Generated on:** ${new Date().toLocaleDateString()}
     `;
 
     return NextResponse.json({
       content,
-      filename: `${plan.business_name.toLowerCase().replace(/\s+/g, "-")}-business-plan.pdf`,
+      filename: `${evaluation.businessName.toLowerCase().replace(/\s+/g, "-")}-evaluation-report.pdf`,
     });
 
   } catch (error) {
     console.error("PDF Generation Error:", error);
     return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });
   }
-}
+};
