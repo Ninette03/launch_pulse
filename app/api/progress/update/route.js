@@ -1,22 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
-export default async function handler(req, res) {
-  const session = await getServerSession(req, res, authOptions);
+export async function POST(req) {
+  const session = await getServerSession();
 
   if (!session?.user?.id) {
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
-  const { lessonId, completed } = req.body;
-
-  if (!lessonId) {
-    return res.status(400).json({ error: "Lesson ID is required" });
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
   try {
+    const { lessonId, completed } = await req.json();
+
+    if (!lessonId) {
+      return NextResponse.json({ error: "Lesson ID is required" }, { status: 400 });
+    }
+
     await prisma.userProgress.upsert({
       where: {
         userId_lessonId: {
@@ -25,20 +26,20 @@ export default async function handler(req, res) {
         },
       },
       update: {
-        completed: completed,
+        completed,
         lastAccessed: new Date(),
       },
       create: {
         userId: session.user.id,
-        lessonId: lessonId,
-        completed: completed,
+        lessonId,
+        completed,
         lastAccessed: new Date(),
       },
     });
 
-    return res.status(200).json({ success: true });
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Failed to update progress" });
+    return NextResponse.json({ error: "Failed to update progress" }, { status: 500 });
   }
 }
