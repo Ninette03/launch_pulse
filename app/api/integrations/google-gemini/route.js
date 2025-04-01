@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from 'next/server';
 export async function POST(request) {
     try {
       // Get API key from environment variables
