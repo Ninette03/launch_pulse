@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
 let prisma
+console.log("Database URL:", process.env.DATABASE_URL);
 
 if (process.env.NODE_ENV === 'production') {
   prisma = new PrismaClient()
