@@ -14,7 +14,7 @@ function MainComponent() {
   useEffect(() => {
     const fetchBusinessPlan = async () => {
       try {
-        const response = await fetch(`/api/business-plan/${planId}`);
+        const response = await fetch(`/api/Business-plan/${planId}`);
         if (!response.ok) {
           throw new Error(
             `Failed to fetch business plan: ${response.statusText}`
@@ -23,7 +23,7 @@ function MainComponent() {
         const data = await response.json();
         setBusinessPlan(data);
 
-        const analysisResponse = await fetch("/api/business-plan/analyze", {
+        const analysisResponse = await fetch("/api/Business-plan/businessPlanForm", {
           method: "POST",
           body: JSON.stringify({ planId }),
         });
