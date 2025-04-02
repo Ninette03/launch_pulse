@@ -150,73 +150,15 @@ function MainComponent() {
 
       if (!response.ok) throw new Error("Failed to submit evaluation");
 
-      // Get the analyzed results
-      const analysisResponse = await fetch(`/api/evaluation/list?evaluationId=${evaluationId}`);
-      const { scores, feedback } = await analysisResponse.json();
+      window.location.href = `/evaluation/${evaluationId}`;
 
-      setScores(scores);
-      setFeedback(feedback);
-      setShowResultsModal(true);
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  function ResultsModal({ scores = {}, feedback = "", onClose }) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Evaluation Results</h2>
-            
-            {/* Scores Grid */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-700">Market</h3>
-                <p className="text-3xl font-bold text-blue-600">
-                  {(scores.market || 0)}/30
-                </p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-700">Feasibility</h3>
-                <p className="text-3xl font-bold text-green-600">
-                  {scores.feasibility}/30
-                </p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-700">Innovation</h3>
-                <p className="text-3xl font-bold text-purple-600">
-                  {scores.innovation}/40
-                </p>
-              </div>
-            </div>
-  
-            {/* Feedback */}
-            <div className="mb-6">
-              <h3 className="font-semibold mb-2">AI Feedback</h3>
-              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
-                {feedback}
-              </div>
-            </div>
-  
-            {/* Close Button */}
-            <div className="flex justify-end">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                View in Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
   }
+};
   
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
