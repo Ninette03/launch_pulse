@@ -1,6 +1,6 @@
 "use client";
 import { useState, React } from "react";
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from "@clerk/nextjs/server";
 
 function MainComponent() {
   const { data: user, loading: userLoading } = useUser();
