@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 function ProgressChart({ loading, stats, categoryProgress, error }) {
   // Implement your chart component here
-  return <div>Progress Chart Placeholder</div>;
+  return <div>Progress Chart</div>;
 }
 
 export default function ProgressPage() {
