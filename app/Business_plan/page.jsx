@@ -1,13 +1,13 @@
-import { auth } from '@clerk/nextjs';
+import { currentUser } from '@clerk/nextjs';
 import { redirect } from 'next/navigation';
 import BusinessPlanForm from './businessPlanForm';
 
 export default async function BusinessPlanPage() {
-  const { userId } = auth();
+  const user = await currentUser();
   
-  if (!userId) {
-    redirect('/auth?callbackUrl=/business-plan');
+  if (!user) {
+    redirect('/sign-in?redirect_url=/business-plan');
   }
 
-  return <BusinessPlanForm />;
+  return <BusinessPlanForm userId={user.id} />;
 }
