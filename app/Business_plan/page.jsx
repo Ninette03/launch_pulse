@@ -1,5 +1,6 @@
 "use client";
-import { useState, React, useUser } from "react";
+import { useState, React } from "react";
+import { useUser } from '@clerk/clerk-react';
 
 function MainComponent() {
   const { data: user, loading: userLoading } = useUser();
