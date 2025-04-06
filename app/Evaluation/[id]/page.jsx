@@ -10,20 +10,20 @@ export default function EvaluationPage({ params }) {
 
   useEffect(() => {
     const fetchEvaluation = async () => {
-      try {
-        const response = await fetch(`/api/evaluation/list?evaluationId=${params.id}`);
-        if (!response.ok) {
-          throw new Error("Evaluation not found");
+      const res = await fetch(`/api/evaluation/get?id=${params.id}`);
+      const result = await res.json();
+      
+      // Transform API data to match your frontend expectations
+      setData({
+        ...result,
+        scores: {
+          market: result.market_score,
+          feasibility: result.feasibility_score,
+          innovation: result.innovation_score
         }
-        const data = await response.json();
-        setEvaluation(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      });
     };
-
+    
     fetchEvaluation();
   }, [params.id]);
 

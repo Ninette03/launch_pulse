@@ -1,7 +1,9 @@
 "use client";
-import { useState, useEffect, React } from "react";
+import { useState, React } from "react";
+import { useRouter } from 'next/navigation';
 
 function MainComponent() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
     businessName: "",
@@ -143,22 +145,29 @@ function MainComponent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          id: evaluationId,
-          draft: false // Mark as submitted
+          id: evaluationId,  // Using 'id' to match database
+          draft: false
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to submit evaluation");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Submission failed");
+      setEvaluationId(data.id);
+      setScores(data.scores || { market: 0, feasibility: 0, innovation: 0 });
+      setFeedback(data.feedback || "Evaluation submitted successfully");
 
-      window.location.href = `/evaluation/${evaluationId}`;
+      // Brief delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+    
+      // Use Next.js router for client-side navigation
+      router.push(`/evaluation/get/${data.id}`);
 
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-  
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
